@@ -16,20 +16,20 @@ Repository settings below were last verified on 2026-09-13. Checked items are al
 
 ## Required for Test Tool Shed deployment
 
-- [x] Create or designate a non-production account named `iwc_lab` on <https://testtoolshed.g2.bx.psu.edu/>.
+- [x] Create or designate a non-production account named `iwc-lab` on <https://testtoolshed.g2.bx.psu.edu/>.
 - [ ] Generate an API key for that Test Tool Shed account.
 - [ ] Add the API key as the repository Actions secret `TTS_API_KEY`.
-- [x] Verify every lab `.shed.yml` uses `owner: iwc_lab` and a `remote_repository_url` below `galaxyproject/tools-iwc-lab`.
+- [x] Verify every lab `.shed.yml` uses `owner: iwc-lab` and a `remote_repository_url` below `galaxyproject/tools-iwc-lab`.
 - [ ] Set the repository Actions variable `ENABLE_TEST_TOOL_SHED_DEPLOY` to `true` only after the account and metadata are verified.
-- [ ] Merge or rerun a harmless fixture change and confirm it appears under the `iwc_lab` owner on the Test Tool Shed.
+- [ ] Merge or rerun a harmless fixture change and confirm it appears under the `iwc-lab` owner on the Test Tool Shed.
 
 ## Required for Main Tool Shed deployment
 
-- [x] Create or designate the explicitly experimental `iwc_lab` owner on <https://toolshed.g2.bx.psu.edu/>.
+- [x] Create or designate the explicitly experimental `iwc-lab` owner on <https://toolshed.g2.bx.psu.edu/>.
 - [ ] Generate an API key for that Main Tool Shed account.
 - [ ] Add the API key as the repository Actions secret `TS_API_KEY`.
 - [ ] Set the repository Actions variable `ENABLE_MAIN_TOOL_SHED_DEPLOY` to `true` only after the account and metadata are verified.
-- [ ] Merge or rerun a harmless fixture change and confirm it appears under the `iwc_lab` owner on the Main Tool Shed.
+- [ ] Merge or rerun a harmless fixture change and confirm it appears under the `iwc-lab` owner on the Main Tool Shed.
 
 The two services issue independent API keys. Never put an `iuc` owner credential in this repository.
 

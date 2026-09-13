@@ -6,6 +6,6 @@ long_description: |
   This tool can be used in workflows to create a text parameter from multiple individual
   parameters. This copy is retained as an end-to-end CI fixture for tools-iwc-lab.
 name: compose_text_param
-owner: iwc_lab
+owner: iwc-lab
 remote_repository_url: https://github.com/galaxyproject/tools-iwc-lab/tree/main/tools/compose_text_param
 type: unrestricted
