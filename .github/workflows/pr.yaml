@@ -411,11 +411,13 @@ jobs:
           exit 1
         fi
 
-  # deploy changed repositories to the isolated Test Tool Shed owner when explicitly enabled
+  # Deploy changed repositories to either Tool Shed under the experimental
+  # iwc_lab owner. Each destination must be enabled explicitly. As in Tools IUC,
+  # Test Tool Shed deployment is best-effort and runs before Main Tool Shed.
   deploy:
     name: Deploy
     needs: [setup, lint, combine_outputs]
-    if: ${{ github.ref == 'refs/heads/main' && github.repository_owner == 'galaxyproject' && vars.ENABLE_TEST_TOOL_SHED_DEPLOY == 'true' }}
+    if: ${{ github.ref == 'refs/heads/main' && github.repository_owner == 'galaxyproject' && (vars.ENABLE_TEST_TOOL_SHED_DEPLOY == 'true' || vars.ENABLE_MAIN_TOOL_SHED_DEPLOY == 'true') }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -434,13 +436,22 @@ jobs:
         path: ~/.cache/pip
         key: pip_cache_py_${{ matrix.python-version }}_gxy_${{ needs.setup.outputs.galaxy-head-sha }}
     - name: Deploy on testtoolshed
+      if: ${{ vars.ENABLE_TEST_TOOL_SHED_DEPLOY == 'true' }}
       uses: galaxyproject/planemo-ci-action@v1
       with:
         mode: deploy
         repository-list: ${{ needs.setup.outputs.repository-list }}
         shed-target: testtoolshed
         shed-key: ${{ secrets.TTS_API_KEY }}
-
+      continue-on-error: true
+    - name: Deploy on toolshed
+      if: ${{ vars.ENABLE_MAIN_TOOL_SHED_DEPLOY == 'true' }}
+      uses: galaxyproject/planemo-ci-action@v1
+      with:
+        mode: deploy
+        repository-list: ${{ needs.setup.outputs.repository-list }}
+        shed-target: toolshed
+        shed-key: ${{ secrets.TS_API_KEY }}
 
   deploy-report:
     name: Report deploy status

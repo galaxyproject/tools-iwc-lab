@@ -2,7 +2,7 @@
 
 Core pull-request and scheduled CI need no user-managed secrets. GitHub supplies a short-lived `GITHUB_TOKEN`, and the workflows declare the permissions they need.
 
-Repository settings below were last verified on 2026-09-12. Checked items are already configured; unchecked items require an owner decision or credential that was deliberately not created during bootstrap.
+Repository settings below were last verified on 2026-09-13. Checked items are already configured; unchecked items require an owner decision or credential that was deliberately not created during bootstrap.
 
 ## Required before accepting contributions
 
@@ -16,14 +16,22 @@ Repository settings below were last verified on 2026-09-12. Checked items are al
 
 ## Required for Test Tool Shed deployment
 
-- [ ] Create or designate a non-production account named `iwc_lab` on <https://testtoolshed.g2.bx.psu.edu/>.
+- [x] Create or designate a non-production account named `iwc_lab` on <https://testtoolshed.g2.bx.psu.edu/>.
 - [ ] Generate an API key for that Test Tool Shed account.
 - [ ] Add the API key as the repository Actions secret `TTS_API_KEY`.
-- [ ] Verify every lab `.shed.yml` uses `owner: iwc_lab` and a `remote_repository_url` below `galaxyproject/tools-iwc-lab`.
+- [x] Verify every lab `.shed.yml` uses `owner: iwc_lab` and a `remote_repository_url` below `galaxyproject/tools-iwc-lab`.
 - [ ] Set the repository Actions variable `ENABLE_TEST_TOOL_SHED_DEPLOY` to `true` only after the account and metadata are verified.
-- [ ] Merge or rerun a harmless fixture change and confirm it appears only under the `iwc_lab` owner on the Test Tool Shed.
+- [ ] Merge or rerun a harmless fixture change and confirm it appears under the `iwc_lab` owner on the Test Tool Shed.
 
-Do not add a production `TS_API_KEY`. The lab workflow intentionally has no Main Tool Shed deployment step.
+## Required for Main Tool Shed deployment
+
+- [x] Create or designate the explicitly experimental `iwc_lab` owner on <https://toolshed.g2.bx.psu.edu/>.
+- [ ] Generate an API key for that Main Tool Shed account.
+- [ ] Add the API key as the repository Actions secret `TS_API_KEY`.
+- [ ] Set the repository Actions variable `ENABLE_MAIN_TOOL_SHED_DEPLOY` to `true` only after the account and metadata are verified.
+- [ ] Merge or rerun a harmless fixture change and confirm it appears under the `iwc_lab` owner on the Main Tool Shed.
+
+The two services issue independent API keys. Never put an `iuc` owner credential in this repository.
 
 ## Optional ChatOps
 
@@ -45,4 +53,4 @@ The upstream `ready-for-review` workflow also moves pull requests on an organiza
 - [x] Keep the repository public so fork pull requests exercise the same untrusted-contributor path as Tools IUC.
 - [x] Add a short repository description and the `galaxy`, `galaxy-tools`, `planemo`, and `sandbox` topics.
 
-No Actions secrets, variables, or environments were configured during bootstrap. Test Tool Shed publication and optional ChatOps therefore remain safely disabled.
+No Actions secrets, variables, or environments were configured during bootstrap. Tool Shed publication and optional ChatOps therefore remain safely disabled until their corresponding credentials and gates are added.
