@@ -1,0 +1,3 @@
+# Expression tools do not declare package requirements from which Planemo can
+# infer a BioContainer.
+biocontainer_registered
