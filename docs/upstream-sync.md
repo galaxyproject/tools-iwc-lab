@@ -13,7 +13,7 @@ The initial scaffold was derived from `galaxyproject/tools-iuc` commit `d9991e8a
 
 ## Intentional differences
 
-- Test and Main Tool Shed publication are independently disabled by default and use the experimental `iwc_lab` owner.
+- Test and Main Tool Shed publication are independently disabled by default and use the experimental `iwc-lab` owner.
 - IUC-specific code owners and organization project-board automation are not copied.
 - The lab starts with a single fixture instead of duplicating the entire production tool catalog.
 - Lab documentation makes experimental status and promotion boundaries explicit.
@@ -22,7 +22,7 @@ The initial scaffold was derived from `galaxyproject/tools-iuc` commit `d9991e8a
 
 1. Fetch the latest `main` branch from <https://github.com/galaxyproject/tools-iuc> into a temporary clone.
 2. Compare `.github/`, root configuration files, `CONTRIBUTING.md`, and any shared helper scripts with this repository.
-3. Port generally useful CI changes while preserving both deployment gates and the `iwc_lab` owner.
+3. Port generally useful CI changes while preserving both deployment gates and the `iwc-lab` owner.
 4. Update the snapshot commit in this file and `README.md`.
 5. Validate workflow syntax and run the pull-request and weekly workflows before enabling deployment.
 

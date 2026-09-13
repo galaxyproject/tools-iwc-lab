@@ -5,7 +5,7 @@
 
 Sandbox counterpart to [galaxyproject/tools-iuc](https://github.com/galaxyproject/tools-iuc) for agentic Galaxy tool-wrapper experiments.
 
-This repository follows the Tools IUC layout and CI conventions without publishing experiments under the production `iuc` Tool Shed owner. Pull requests are linted and tested with Planemo against Galaxy. Merges may be uploaded to the Test and Main Tool Sheds under the separate, explicitly experimental `iwc_lab` owner, but only after an administrator enables each destination.
+This repository follows the Tools IUC layout and CI conventions without publishing experiments under the production `iuc` Tool Shed owner. Pull requests are linted and tested with Planemo against Galaxy. Merges may be uploaded to the Test and Main Tool Sheds under the separate, explicitly experimental `iwc-lab` owner, but only after an administrator enables each destination.
 
 ## Repository layout
 
@@ -28,7 +28,7 @@ planemo shed_lint --tools --ensure_metadata --urls --biocontainers \
 planemo test tools/compose_text_param
 ```
 
-Experimental changes belong here, not in `tools-iuc`. Publication under `iwc_lab` does not make a wrapper an IUC release. Once an experiment is ready for IUC ownership, submit a clean contribution to the upstream repository and follow its normal review process.
+Experimental changes belong here, not in `tools-iuc`. Publication under `iwc-lab` does not make a wrapper an IUC release. Once an experiment is ready for IUC ownership, submit a clean contribution to the upstream repository and follow its normal review process.
 
 ## Deployment safety
 
@@ -37,7 +37,7 @@ Each Tool Shed destination is enabled independently:
 - Test Tool Shed requires `ENABLE_TEST_TOOL_SHED_DEPLOY=true` and the `TTS_API_KEY` secret.
 - Main Tool Shed requires `ENABLE_MAIN_TOOL_SHED_DEPLOY=true` and the `TS_API_KEY` secret.
 
-Both keys must belong to the `iwc_lab` owner on their respective services. Test Tool Shed runs first and is best-effort, matching Tools IUC; Main Tool Shed failures fail the deployment job and are reported on the merged pull request. If neither destination is enabled, linting and tests still run and deployment is skipped.
+Both keys must belong to the `iwc-lab` owner on their respective services. Test Tool Shed runs first and is best-effort, matching Tools IUC; Main Tool Shed failures fail the deployment job and are reported on the merged pull request. If neither destination is enabled, linting and tests still run and deployment is skipped.
 
 See [docs/bootstrap-checklist.md](docs/bootstrap-checklist.md) for repository setup and [docs/upstream-sync.md](docs/upstream-sync.md) for the upstream snapshot and refresh procedure.
 
