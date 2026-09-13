@@ -2,15 +2,17 @@
 
 Core pull-request and scheduled CI need no user-managed secrets. GitHub supplies a short-lived `GITHUB_TOKEN`, and the workflows declare the permissions they need.
 
+Repository settings below were last verified on 2026-09-12. Checked items are already configured; unchecked items require an owner decision or credential that was deliberately not created during bootstrap.
+
 ## Required before accepting contributions
 
-- [ ] Create `galaxyproject/tools-iwc-lab` with `main` as its default branch.
-- [ ] Enable GitHub Actions and allow the actions referenced by `.github/workflows/`.
-- [ ] Set default workflow permissions to read-only; the workflows request narrow write permissions for individual jobs.
-- [ ] Create the labels `skip-url-check`, `skip-version-check`, and `ready-for-review`.
-- [ ] Protect `main`: require pull requests, at least one approving review, and the `Check workflow success` status check.
+- [x] Create `galaxyproject/tools-iwc-lab` with `main` as its default branch.
+- [x] Enable GitHub Actions and allow the actions referenced by `.github/workflows/`.
+- [x] Set default workflow permissions to read-only; the workflows request narrow write permissions for individual jobs.
+- [x] Create the labels `skip-url-check`, `skip-version-check`, and `ready-for-review`.
+- [x] Protect `main`: require pull requests, at least one approving review, the `Check workflow success` status check, and resolved review conversations; disable force pushes and branch deletion.
 - [ ] Decide who owns lab review and add valid entries to `.github/CODEOWNERS`.
-- [ ] Run the `Weekly global Tool Linting and Tests` workflow manually once and verify lint, test, artifact-combination, and summary jobs.
+- [x] Run the `Weekly global Tool Linting and Tests` workflow manually once and verify lint, test, artifact-combination, and summary jobs ([successful bootstrap run](https://github.com/galaxyproject/tools-iwc-lab/actions/runs/34733940362)).
 
 ## Required for Test Tool Shed deployment
 
@@ -36,9 +38,11 @@ The upstream `ready-for-review` workflow also moves pull requests on an organiza
 
 ## Recommended repository settings
 
-- [ ] Enable Dependabot alerts and GitHub Actions version updates.
-- [ ] Enable secret scanning and push protection.
-- [ ] Disable force pushes and branch deletion on `main`.
-- [ ] Require conversation resolution if lab review volume warrants it.
-- [ ] Keep the repository public so fork pull requests exercise the same untrusted-contributor path as Tools IUC.
-- [ ] Add a short repository description and the `galaxy`, `galaxy-tools`, `planemo`, and `sandbox` topics.
+- [x] Enable Dependabot alerts, security updates, and GitHub Actions version updates.
+- [x] Enable secret scanning and push protection.
+- [x] Disable force pushes and branch deletion on `main`.
+- [x] Require conversation resolution.
+- [x] Keep the repository public so fork pull requests exercise the same untrusted-contributor path as Tools IUC.
+- [x] Add a short repository description and the `galaxy`, `galaxy-tools`, `planemo`, and `sandbox` topics.
+
+No Actions secrets, variables, or environments were configured during bootstrap. Test Tool Shed publication and optional ChatOps therefore remain safely disabled.
