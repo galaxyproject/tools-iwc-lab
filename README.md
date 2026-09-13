@@ -22,7 +22,9 @@ This repository follows the Tools IUC layout and CI conventions without publishi
 Read [CONTRIBUTING.md](CONTRIBUTING.md) and the [IUC standards and best practices](https://galaxy-iuc-standards.readthedocs.io/en/latest/). A typical local check is:
 
 ```bash
-planemo lint --biocontainers tools/compose_text_param
+planemo shed_lint --tools --ensure_metadata --urls --biocontainers \
+  --skip_file tools/compose_text_param/.lint_skip \
+  --skip version_bumped tools/compose_text_param
 planemo test tools/compose_text_param
 ```
 
