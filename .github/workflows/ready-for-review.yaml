@@ -1,0 +1,90 @@
+name: Auto-label ready for review
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  checks: read
+  contents: read
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.issue.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  check-and-label:
+    if: >-
+      github.event.issue.pull_request != null &&
+      contains(github.event.comment.body, 'please review')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+    - name: Validate pull request and add label
+      uses: actions/github-script@v9
+      with:
+        github-token: ${{ github.token }}
+        script: |
+          const owner = context.repo.owner;
+          const repo = context.repo.repo;
+          const pull_number = context.payload.issue.number;
+
+          const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number });
+          if (pr.draft) {
+            core.setFailed('The pull request is still a draft.');
+            return;
+          }
+
+          const query = `
+            query($owner: String!, $repo: String!, $pull_number: Int!, $cursor: String) {
+              repository(owner: $owner, name: $repo) {
+                pullRequest(number: $pull_number) {
+                  reviewThreads(first: 100, after: $cursor) {
+                    nodes { isResolved }
+                    pageInfo { hasNextPage endCursor }
+                  }
+                }
+              }
+            }
+          `;
+          let cursor = null;
+          let hasNextPage = false;
+          do {
+            const result = await github.graphql(query, { owner, repo, pull_number, cursor });
+            const threads = result.repository.pullRequest.reviewThreads;
+            if (threads.nodes.some(thread => !thread.isResolved)) {
+              core.setFailed('The pull request has unresolved review threads.');
+              return;
+            }
+            cursor = threads.pageInfo.endCursor;
+            hasNextPage = threads.pageInfo.hasNextPage;
+          } while (hasNextPage);
+
+          const { data } = await github.rest.checks.listForRef({
+            owner,
+            repo,
+            ref: pr.head.sha,
+            per_page: 100,
+          });
+          if (data.check_runs.length === 0) {
+            core.setFailed('No CI checks have reported yet.');
+            return;
+          }
+          const incomplete = data.check_runs.filter(run => run.status !== 'completed');
+          const failing = data.check_runs.filter(run =>
+            run.status === 'completed' &&
+            !['success', 'skipped', 'neutral'].includes(run.conclusion)
+          );
+          if (incomplete.length > 0 || failing.length > 0) {
+            core.setFailed('CI is incomplete or failing.');
+            return;
+          }
+
+          await github.rest.issues.addLabels({
+            owner,
+            repo,
+            issue_number: pull_number,
+            labels: ['ready-for-review'],
+          });

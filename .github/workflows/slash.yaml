@@ -1,0 +1,22 @@
+name: Slash Command Dispatch
+on:
+  issue_comment:
+    types: [created]
+jobs:
+  slashCommandDispatch:
+    if: >-
+      ${{ github.repository_owner == 'galaxyproject'
+      && contains(github.event.comment.body, '/run-all-tool-tests') }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    env:
+      PAT: ${{ secrets.PAT }}
+    steps:
+      - name: Slash Command Dispatch
+        if: ${{ env.PAT != '' }}
+        uses: peter-evans/slash-command-dispatch@v5
+        with:
+          token: ${{ env.PAT }}
+          commands: |
+            run-all-tool-tests
