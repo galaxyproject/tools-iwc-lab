@@ -4,3 +4,5 @@ tools/compose_text_param
 # No mulled BioContainer is registered yet for this two-package requirement set.
 tools/drimseq
 tools/rmats
+# No mulled BioContainer is registered yet for this multi-package requirement set.
+tools/mirtop
