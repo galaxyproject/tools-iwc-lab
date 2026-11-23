@@ -1,0 +1,12 @@
+name: collection_self_pairs
+owner: iwc-lab
+description: Emit {id}_{id} self-pairs for every element identifier in a list collection
+long_description: |
+  Emits one {id}_{id} line per element identifier of an input list collection,
+  providing the self-cross diagonal file consumed by Galaxy's __FILTER_FROM_FILE__
+  (remove_if_present) after a collection self-cross-product.
+homepage_url: https://github.com/richard-burhans/brc-tools
+remote_repository_url: https://github.com/galaxyproject/tools-iwc-lab/tree/main/tools/collection_self_pairs
+type: unrestricted
+categories:
+  - Text Manipulation

@@ -1,0 +1,12 @@
+name: collection_relabel_map
+owner: iwc-lab
+description: Emit {a}_{b}<TAB>{a}.{b} relabel map for distinct ordered pairs of collection identifiers
+long_description: |
+  Emits a two-column tabular mapping ({a}_{b} to {a}.{b}) for every ordered pair
+  of distinct element identifiers in a list collection, omitting the A_A diagonal
+  so Galaxy's __RELABEL_FROM_FILE__ can run in strict mode after diagonal removal.
+homepage_url: https://github.com/richard-burhans/brc-tools
+remote_repository_url: https://github.com/galaxyproject/tools-iwc-lab/tree/main/tools/collection_relabel_map
+type: unrestricted
+categories:
+  - Text Manipulation
