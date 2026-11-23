@@ -1,0 +1,61 @@
+<!-- 1.1: relabel_map.py stopped emitting the A_A diagonal, so the same input now yields
+     n**2-n rows where it produced n**2. The output LENGTH changed, so the version had to:
+     a run recorded against 1.0+galaxy0 cannot say which behaviour produced it. The UDT
+     edition was bumped 0.1.0 -> 0.2.0 for the same reason. -->
+<tool id="collection_relabel_map" name="Collection relabel map" version="1.1+galaxy0" profile="23.0">
+    <description>{a}_{b} TAB {a}.{b} for every ordered pair of distinct element identifiers</description>
+    <requirements>
+        <requirement type="package" version="3.12">python</requirement>
+    </requirements>
+    <required_files>
+        <include path="relabel_map.py"/>
+    </required_files>
+    <command detect_errors="exit_code"><![CDATA[
+python '$__tool_directory__/relabel_map.py'
+    --ids '#echo " ".join([str($el.element_identifier) for $el in $input])#'
+    --out '$output'
+    ]]></command>
+    <inputs>
+        <param name="input" type="data_collection" label="List collection" help="The ordered-pair relabel map is derived from this collection's element identifiers." collection_type="list"/>
+    </inputs>
+    <outputs>
+        <data name="output" format="tabular" label="${tool.name} on ${on_string}: relabel map"/>
+    </outputs>
+    <tests>
+        <test expect_num_outputs="1">
+            <param name="input">
+                <collection type="list">
+                    <element name="spA" value="dummy.txt" ftype="txt"/>
+                    <element name="spB" value="dummy.txt" ftype="txt"/>
+                    <element name="spC" value="dummy.txt" ftype="txt"/>
+                </collection>
+            </param>
+            <output name="output" ftype="tabular">
+                <assert_contents>
+                    <has_n_lines n="6"/>
+                    <has_line line="spA_spB&#9;spA.spB"/>
+                    <has_line line="spB_spA&#9;spB.spA"/>
+                    <has_line line="spA_spC&#9;spA.spC"/>
+                    <has_line line="spC_spA&#9;spC.spA"/>
+                    <has_line line="spB_spC&#9;spB.spC"/>
+                    <has_line line="spC_spB&#9;spC.spB"/>
+                    <not_has_text text="spA_spA"/>
+                </assert_contents>
+            </output>
+        </test>
+    </tests>
+    <help><![CDATA[
+Emits a 2-column TSV ``{a}_{b}<TAB>{a}.{b}`` for every ordered pair of **distinct** element
+identifiers. Cross-product cells are named ``A_B`` (the collection-id join separator can't be
+``.``); this map renames them to ``A.B`` (Phase E ids) via ``__RELABEL_FROM_FILE__``.
+
+The ``A_A`` diagonal is **omitted**, because WF-C drops those cells with the self-pair list before
+relabelling. That makes the row count equal the element count, which is what allows the relabel
+step to run in strict mode -- and strict mode is the only thing that can detect a map built from
+the wrong collection. With the diagonal present the strict row-count check refuses every run, and
+without strict mode an unmatched element silently keeps its ``A_B`` identifier.
+    ]]></help>
+    <citations>
+        <citation type="doi">10.1093/nar/gkae410</citation>
+    </citations>
+</tool>
