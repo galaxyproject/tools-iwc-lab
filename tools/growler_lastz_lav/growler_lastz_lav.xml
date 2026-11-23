@@ -1,0 +1,250 @@
+<tool id="growler_lastz_lav" name="Growler LASTZ (LAV)" version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@" profile="22.01" license="MIT">
+    <description>gapped extension of one KegAlign pair file, one target per lastz call, LAV out</description>
+    <macros>
+        <token name="@TOOL_VERSION@">1.04.52</token>
+        <token name="@VERSION_SUFFIX@">5</token>
+        <token name="@KEGALIGN_VERSION@">0.3.4</token>
+    </macros>
+    <requirements>
+        <!-- ⚠ kegalign-full, NOT lastz: this is the one published image carrying lastz 1.04.52
+             AND a Python to drive it. A bare lastz image is BusyBox, whose awk and sed exit 0 on a
+             failed write; Python raises. It is also the image KegAlign itself runs in, so no new
+             container has to be built, published or propagated to CVMFS. -->
+        <requirement type="package" version="@KEGALIGN_VERSION@">kegalign-full</requirement>
+    </requirements>
+    <!-- ⚠ NOT lastz's own version flag: it exits 1, and Galaxy runs the version command under `set -e`, so
+         the job dies before the command with empty stdout and stderr. -->
+    <version_command><![CDATA[ echo "@TOOL_VERSION@" ]]></version_command>
+    <command detect_errors="exit_code"><![CDATA[
+## ⛔ WHY LAV, AND WHY ONE TARGET PER CALL. LAV is lastz's native, sequence-free format and what
+## UCSC's own pipeline stores (doBlastzChainNet.pl: lastz -> lav -> lavToPsl -> axtChain -psl).
+## Measured on a real 50,000-segment chunk: LAV 5.8 MB and PSL 4.1 MB against 39.4 MB of AXT, same
+## lastz time, and axtChain gives IDENTICAL chains from the PSL, minus strand included. But lastz
+## refuses LAV with the [multiple] target action -- "multiple action cannot be used with --lav" --
+## and a [subset] run does NOT skip other targets' segments, it applies them to the wrong sequence
+## and fails ("target interval out of range"). So every call must carry exactly one target.
+##
+## ▶ A STABLE PARTITION BY TARGET KEEPS LASTZ'S RULES. A KegAlign pair file lists queries in 2bit
+## order with each query's plus lines before its minus lines, and target order is free. Taking one
+## target's lines in their original relative order preserves both rules, so no sort is needed.
+##
+## ▶ 50,000 SEGMENTS PER CALL, as growler_lastz: lastz is ~n^1.9 in segments per call.
+##
+## ⛔ THE DRIVER IS A CONFIGFILE, NOT A HEREDOC. Galaxy replaces every newline in <command> with a
+## space before running it (lib/galaxy/tools/evaluation.py, "Remove newlines from command line"),
+## so inline Python cannot survive there. The configfile uses no Cheetah references -- its inputs
+## arrive as argv -- which is what lets udt_convert.py carry it into a UDT as a heredoc.
+## ⚠ No Cheetah directives and no helper script beside the wrapper, for the same reason.
+## ⛔ by_target/ IS EMPTIED FIRST. The per-target files are written in append mode, so a second run in
+## the same directory -- re-running a job script by hand, the usual way to debug one -- doubled every
+## segment file and lastz then failed on plus lines after minus ones (measured 2026-09-27).
+## ⚠ The driver reads `null` as 0 for inner/masking: a UDT integer defaulting to 0 fails Galaxy 26.1's
+## tool lint, so the generated UDT declares them optional, and an unset optional renders as `null`.
+ln -s '$target' target.2bit &&
+ln -s '$query' query.2bit &&
+python3 '$driver' '$pair' '$scores' '$gappedthresh' '$ydrop' '$inner' '$masking' '$output'
+    ]]></command>
+    <configfiles>
+        <configfile name="driver"><![CDATA[import gzip
+import os
+import shutil
+import subprocess
+import sys
+
+pair, scores, gappedthresh, ydrop, inner, masking, output = sys.argv[1:8]
+inner = '0' if inner in ('null', '') else inner
+masking = '0' if masking in ('null', '') else masking
+CHUNK = 50000
+FLUSH = 20000
+LAV_TRAILER = b'#:eof'
+#: the window repair_killed_jobs.py already proved against real panel LAV files.
+TRAILER_WINDOW = 80
+
+
+def require_wellformed(path, what):
+    # ⛔ THE TRAILER PROVES THE END ARRIVED; IT PROVES NOTHING ABOUT THE MIDDLE, and a real panel
+    # LAV lost bytes there. MEASURED 2026-10-08 on STLR (laila), a 203,016,405-byte assembled LAV
+    # that ended with '#:eof', passed both trailer checks, and whose producer exited 0:
+    #
+    #     l 189592 2140688 189758 2140854 97
+    #     l 189759 214085#:lav            <- cut mid-number, a header abutting the stump
+    #
+    # ONE malformed line in 203 MB, against 1,085 well-formed '#:lav' headers. Three lavToPsl
+    # jobs then died on it with 'Expecting 6 words line 4431827', 38 jobs paused behind them, and
+    # the pair read as computed until a consumer refused it.
+    #
+    # ⚠ THE TERMINATOR COUNT DOES NOT CATCH THIS. The file held 181 '#:eof' for 181 lastz calls,
+    # exactly balanced, because a chunk's LAV carries 2-11 '#:lav' headers of its own -- so the
+    # header after the stump belongs to the SAME chunk and that chunk's '#:eof' still arrived.
+    # Counting terminators looks like a structural check and is blind to a mid-chunk loss.
+    #
+    # So this reads the assembled file once and asserts what the CONSUMER requires: every 'l' row
+    # carries 6 fields, which is lavToPsl's own expectation, and no header is abutted by content.
+    # Measured at 0.9 s and 10 MB of RSS over that 203 MB file, in one pass, so it is free next to
+    # a lastz call. It is checked on the ASSEMBLY rather than per chunk because every chunk had
+    # already passed its own trailer check -- the loss happened while copying them out.
+    with open(path, 'rb') as fh:
+        for n, line in enumerate(fh, 1):
+            if b'#:lav' in line and not line.startswith(b'#:lav'):
+                sys.exit('%s: line %d has content abutting a #:lav header (%r) -- bytes were lost '
+                         'mid-file while assembling it. The output is NOT safe to build chains on.'
+                         % (what, n, line[:60]))
+            stripped = line.strip()
+            if stripped[:2] == b'l ' and len(stripped.split()) != 6:
+                sys.exit('%s: line %d is an alignment row with %d fields, not 6 (%r) -- lavToPsl '
+                         'rejects this as "Expecting 6 words". The output is NOT safe to build '
+                         'chains on.' % (what, n, len(stripped.split()), line[:60]))
+
+
+def require_trailer(path, what):
+    # lastz closes every LAV it finishes with '#:eof'. Its absence means the write stopped
+    # early -- which is the one failure Galaxy cannot see: a truncated LAV is still megabytes,
+    # still parses as a datatype, and the job still reports ok. It surfaces much later as
+    # lavToPsl 'End before start' or 'Expecting 6 words', by which point the pair looks
+    # computed. The exit code does not cover it: a full disk can stop the write with lastz
+    # still exiting 0. Checked by absolute offset from the end, never a negative-range read.
+    size = os.path.getsize(path)
+    with open(path, 'rb') as fh:
+        fh.seek(max(0, size - TRAILER_WINDOW))
+        tail = fh.read()
+    if LAV_TRAILER not in tail:
+        sys.exit('%s: no %s trailer in the last %d of %d bytes -- lastz did not finish '
+                 'writing it. The output is truncated (a full disk is the usual cause); '
+                 'it is NOT safe to build chains on.'
+                 % (what, LAV_TRAILER.decode(), TRAILER_WINDOW, size))
+
+with open(pair, 'rb') as fh:
+    gz = fh.read(2) == b'\x1f\x8b'
+reader = gzip.open(pair, 'rb') if gz else open(pair, 'rb')
+
+shutil.rmtree('by_target', ignore_errors=True)
+os.makedirs('by_target')
+order = []
+index = {}
+buffers = {}
+
+
+def flush(t):
+    with open(os.path.join('by_target', str(index[t])), 'ab') as out:
+        out.writelines(buffers[t])
+    buffers[t] = []
+
+
+with reader:
+    for line in reader:
+        if not line.strip():
+            continue
+        t = line.split(b'\t', 1)[0]
+        if t not in index:
+            index[t] = len(order)
+            order.append(t)
+            buffers[t] = []
+        buffers[t].append(line)
+        if len(buffers[t]) >= FLUSH:
+            flush(t)
+for t in order:
+    flush(t)
+
+calls = 0
+with open(output, 'wb') as out:
+    for t in order:
+        with open('subset.txt', 'wb') as fh:
+            fh.write(t + b'\n')
+        with open(os.path.join('by_target', str(index[t])), 'rb') as fh:
+            done = False
+            while not done:
+                lines = []
+                for line in fh:
+                    lines.append(line)
+                    if len(lines) == CHUNK:
+                        break
+                done = len(lines) < CHUNK
+                if not lines:
+                    break
+                with open('chunk.segments', 'wb') as ch:
+                    ch.writelines(lines)
+                cmd = ['lastz', 'target.2bit[subset=subset.txt,nameparse=darkspace]',
+                       'query.2bit[nameparse=darkspace]', '--allocate:traceback=2G',
+                       '--segments=chunk.segments', '--scores=' + scores,
+                       '--gappedthresh=' + gappedthresh, '--ydrop=' + ydrop,
+                       '--inner=' + inner, '--masking=' + masking,
+                       '--format=lav', '--output=chunk.lav']
+                rc = subprocess.run(cmd).returncode
+                if rc != 0:
+                    sys.exit('lastz exited %d on target %s' % (rc, t.decode()))
+                # BOTH CHECKS, PER CHUNK. require_trailer only proves the '#:eof' arrived, so a chunk
+                # that lost bytes mid-file passes it, gets copied in faithfully, and the ASSEMBLY then
+                # fails require_wellformed. Measured on SSHS (2026-10-09): 'content abutting a #:lav
+                # header' at line 2505203 of the assembled output, which blamed the assembly when the
+                # concatenation had done its job. Checking here names the offending chunk and its
+                # target, and fails before the whole file is copied. The concatenation is not the
+                # suspect: it writes with out.write inside a `with`, so a short write raises OSError
+                # rather than dropping bytes in silence.
+                require_trailer('chunk.lav', 'chunk %d of target %s' % (calls + 1, t.decode()))
+                require_wellformed('chunk.lav', 'chunk %d of target %s' % (calls + 1, t.decode()))
+                with open('chunk.lav', 'rb') as lav:
+                    while True:
+                        block = lav.read(1 << 22)
+                        if not block:
+                            break
+                        out.write(block)
+                calls += 1
+
+# ⚠ AFTER THE `with` CLOSES, so the buffer is flushed and a write error has been raised.
+# Guarded on `calls` because an empty pair file legitimately produces no lastz call and so
+# no trailer -- asserting unconditionally would fail the one case that is genuinely empty.
+if calls:
+    require_trailer(output, 'the assembled LAV output')
+    require_wellformed(output, 'the assembled LAV output')
+print('%d target(s), %d lastz call(s)' % (len(order), calls))
+]]></configfile>
+    </configfiles>
+    <inputs>
+        <param name="pair" type="data" format="tabular.gz,tabular" label="Pair file" help="One element of KegAlign's pair-file collection: anchor segments, both strands, any number of targets."/>
+        <param name="target" type="data" format="twobit" label="Target sequence (2bit)"/>
+        <param name="query" type="data" format="twobit" label="Query sequence (2bit)"/>
+        <param name="scores" type="data" format="txt" label="Scoring file in LASTZ format" help="Required, not optional: it must match the scoring KegAlign seeded with, and a UDT cannot express an optional argument."/>
+        <param argument="--gappedthresh" type="integer" value="3000" label="Gapped extension threshold"/>
+        <param argument="--ydrop" type="integer" value="9430" label="Y-drop"/>
+        <param argument="--inner" type="integer" value="0" min="0" label="Interpolation threshold (blastz H)" help="0 is lastz's default, off; measured byte-identical to omitting the option. UCSC's hg38 x panTro6 run used H=2000."/>
+        <param argument="--masking" type="integer" value="0" min="0" label="Dynamic masking count (blastz M)" help="0 is lastz's default, off. UCSC's hg38 x panTro6 run used M=254."/>
+    </inputs>
+    <outputs>
+        <data name="output" format="lav" label="${tool.name} on ${on_string}"/>
+    </outputs>
+    <tests>
+        <!-- ▶ TWO TARGETS, INTERLEAVED, BOTH STRANDS: the shape a [multiple] run handles and a
+             single-target run refuses. The test pins that the partition produced one call per
+             target and that both targets' alignments are present. -->
+        <test expect_num_outputs="1">
+            <param name="pair" value="two_targets.segments" ftype="tabular"/>
+            <param name="target" value="target.2bit" ftype="twobit"/>
+            <param name="query" value="query.2bit" ftype="twobit"/>
+            <param name="scores" value="scores.txt" ftype="txt"/>
+            <output name="output">
+                <assert_contents>
+                    <has_text text="#:lav"/>
+                    <has_text text="&quot;t1&quot;"/>
+                    <has_text text="&quot;t2&quot;"/>
+                </assert_contents>
+            </output>
+            <assert_stdout>
+                <has_text text="2 target(s), 2 lastz call(s)"/>
+            </assert_stdout>
+        </test>
+    </tests>
+    <help><![CDATA[
+**What it does**
+
+Gapped extension for one KegAlign pair file, writing LAV. The pair file is split by target sequence
+(a stable partition, which keeps lastz's ordering rules), and each target's segments are run through
+lastz in calls of at most 50,000 segments, each with that one target selected.
+
+Convert the result with **lavToPsl** and chain it with **axtChain** on PSL input -- the route UCSC's
+``doBlastzChainNet.pl`` takes. On a real 50,000-segment Cannabis chunk the PSL was 10x smaller than
+the equivalent AXT and gave identical chains.
+]]></help>
+    <citations>
+        <citation type="doi">10.1101/2022.09.22.509103</citation>
+    </citations>
+</tool>
